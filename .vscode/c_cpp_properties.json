@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/home/carl/miniconda3/include/python3.11",
+                "/home/carl/miniconda3/lib/python3.11/site-packages/torch",
+                "/home/carl/miniconda3/lib/python3.11/site-packages/torch/include",
+                "/home/carl/miniconda3/lib/python3.11/site-packages/torch/include/torch/csrc/api/include"
+
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
