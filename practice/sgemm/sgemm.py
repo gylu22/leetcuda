@@ -5,7 +5,7 @@ import os
 import numpy as np
 
 # 设置架构列表，确保在 import torch 之前
-os.environ['TORCH_CUDA_ARCH_LIST'] = '8.6'
+os.environ['TORCH_CUDA_ARCH_LIST'] = '8.9'
 # os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 import torch
 from torch.utils.cpp_extension import load
@@ -228,4 +228,5 @@ if __name__ == "__main__":
         run_benchmark(lib.sgemm_sliced_k_f32, a, b, "f32(clice)", c, check_acc=True)
         run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4, a, b, "f32x4(clice)", c, check_acc=True)
         run_benchmark(lib.sgemm_t_8x8_sliced_k_bcf_f32x4, a, b, "f32x4_bcf(clice)", c, check_acc=True)
+        run_benchmark(lib.sgemm_t_8x8_sliced_k_bcf_db_f32x4, a, b, "f32x4_bcf_db(clice)", c, check_acc=True)
        

@@ -229,6 +229,88 @@ __global__ void sgemm_t_8x8_sliced_k_bcf_f32x4_kernel(float *a, float *b, float 
       }
 }
 
+
+
+
+template <const int BM = 128, const int BN = 128, const int BK = 8,
+          const int TM = 8, const int TN = 8>
+__global__ void sgemm_t_8x8_sliced_k_bcf_db_f32x4_kernel(float *a, float *b, float *c,
+                                                  int M, int N, int K) {
+
+    float __shared__ tileA[2][BK][BM], tileB[2][BK][BN];
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
+
+    float *a_ptr = a + blockIdx.y * BM * K;
+    float *b_ptr = b + blockIdx.x * BN;
+    float *c_ptr = c + blockIdx.y * BM * N + blockIdx.x * BN;
+    int tid = ty * blockDim.x + tx; // 0-127
+
+    float temp[TM][TN] = {0.f};
+    // 重新映射线程
+    int ta_y = tid / (BK / 4); // 0-127
+    int ta_x = (tid % (BK / 4)) * 4 ; // 0,4     
+    int tb_y = tid / (BN / 4); // 0-7
+    int tb_x = tid % (BN / 4) * 4; // 0,4,8...  
+    // 提前读取第一次循环的数据
+    float4 x_vec = FLOAT4(a_ptr[ta_y * K + ta_x]);
+    tileA[0][ta_x][ta_y] = x_vec.x;
+    tileA[0][ta_x+1][ta_y] = x_vec.y;
+    tileA[0][ta_x+2][ta_y] = x_vec.z;
+    tileA[0][ta_x+3][ta_y] = x_vec.w;
+
+    FLOAT4(tileB[0][tb_y][tb_x]) = FLOAT4(b_ptr[tb_y * N + tb_x]);
+    __syncthreads();
+    int read_stage_idx = 0;                                               
+    // 外层循环（M+BK -1）/ BK
+    for (int k=0; k<K; k+=BK){
+      int load_stage_idx = read_stage_idx ^ 1;
+      if (k+BK < K){
+      float4 x_vec = FLOAT4(a_ptr[ta_y * K + ta_x + k + BK]);
+      tileA[load_stage_idx][ta_x][ta_y] = x_vec.x;
+      tileA[load_stage_idx][ta_x+1][ta_y] = x_vec.y;
+      tileA[load_stage_idx][ta_x+2][ta_y] = x_vec.z;
+      tileA[load_stage_idx][ta_x+3][ta_y] = x_vec.w;
+      FLOAT4(tileB[load_stage_idx][tb_y][tb_x]) = FLOAT4(b_ptr[(k +BK+tb_y) * N + tb_x]);
+      }
+      // 计算每个线程的BK x BK的区域
+      // 内层循环BK次
+      #pragma unroll
+      for (int i = 0; i < BK; i++) {
+        float tileA_BK[TM];
+        float tileB_BK[TN];
+        #pragma unroll
+        for (int j = 0; j < TM; j++) {
+          // tileA_BK[j] = tileA[ty * TM + j][i];
+          tileA_BK[j] = tileA[read_stage_idx][i][ty * TM + j];
+        }
+        #pragma unroll
+        for (int j = 0; j < TN; j++) {
+          tileB_BK[j] = tileB[read_stage_idx][i][tx * TN + j];
+        }
+        #pragma unroll
+        for (int a_i = 0; a_i < TM; a_i++) {
+          for (int b_j = 0; b_j < TN; b_j++) {
+            temp[a_i][b_j] += tileA_BK[a_i] * tileB_BK[b_j];
+          }
+        }
+      }
+      // 第二次同步，保证下一次更新shared memory之前已经计算完成
+      __syncthreads();
+      read_stage_idx ^=1;
+
+      }
+      #pragma unroll
+      for (int i=0;i<TM;i++){
+        for (int j=0;j<TN;j++){
+          c_ptr[(ty * TM + i) * N + tx * TN + j] = temp[i][j];
+        }
+      }
+}
+
+
+
+
 #define STRINGFY(str) #str
 #define TORCH_BINDING_COMMON_EXTENSION(func)                                   \
   m.def(STRINGFY(func), &func, STRINGFY(func));
@@ -343,10 +425,38 @@ void sgemm_t_8x8_sliced_k_bcf_f32x4(torch::Tensor a, torch::Tensor b,
 }
 
 
+void sgemm_t_8x8_sliced_k_bcf_db_f32x4(torch::Tensor a, torch::Tensor b,
+                                torch::Tensor c) {
+  CHECK_TORCH_TENSOR_DTYPE(a, torch::kFloat32)
+  CHECK_TORCH_TENSOR_DTYPE(b, torch::kFloat32)
+  CHECK_TORCH_TENSOR_DTYPE(c, torch::kFloat32)
+  const int M = a.size(0);
+  const int K = a.size(1);
+  const int N = b.size(1);
+  CHECK_TORCH_TENSOR_SHAPE(a, M, K)
+  CHECK_TORCH_TENSOR_SHAPE(b, K, N)
+  CHECK_TORCH_TENSOR_SHAPE(c, M, N)
+  constexpr int BM = 128;
+  constexpr int BN = 128;
+  constexpr int BK = 8;
+  constexpr int TM = 8;
+  constexpr int TN = 8;
+
+  dim3 block(BN / TN, BM / TM);
+  dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
+
+  sgemm_t_8x8_sliced_k_bcf_db_f32x4_kernel<BM, BN, BK, TM, TN>
+      <<<grid, block>>>(reinterpret_cast<float *>(a.data_ptr()),
+                        reinterpret_cast<float *>(b.data_ptr()),
+                        reinterpret_cast<float *>(c.data_ptr()), M, N, K);
+}
+
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(sgemm_naive_f32)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_sliced_k_f32)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_bcf_f32x4)
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_bcf_db_f32x4)
 
 }
