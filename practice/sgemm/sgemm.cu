@@ -137,7 +137,7 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_kernel(float *a, float *b, float *c,
         #pragma unroll
         for (int a_i = 0; a_i < TM; a_i++) {
           for (int b_j = 0; b_j < TN; b_j++) {
-            temp[a_i][b_j] += tileA_BK[a_i] * tileB_BK[b_j];
+            temp[a_i][b_j] = __fmaf_rn(tileA_BK[a_i], tileB_BK[b_j],temp[a_i][b_j]);
           }
         }
       }
@@ -214,7 +214,7 @@ __global__ void sgemm_t_8x8_sliced_k_bcf_f32x4_kernel(float *a, float *b, float 
         #pragma unroll
         for (int a_i = 0; a_i < TM; a_i++) {
           for (int b_j = 0; b_j < TN; b_j++) {
-            temp[a_i][b_j] += tileA_BK[a_i] * tileB_BK[b_j];
+            temp[a_i][b_j] = __fmaf_rn(tileA_BK[a_i], tileB_BK[b_j],temp[a_i][b_j]);
           }
         }
       }
@@ -291,7 +291,9 @@ __global__ void sgemm_t_8x8_sliced_k_bcf_db_f32x4_kernel(float *a, float *b, flo
         #pragma unroll
         for (int a_i = 0; a_i < TM; a_i++) {
           for (int b_j = 0; b_j < TN; b_j++) {
-            temp[a_i][b_j] += tileA_BK[a_i] * tileB_BK[b_j];
+            // temp[a_i][b_j] += tileA_BK[a_i] * tileB_BK[b_j];
+            // PTX 内联函数 
+            temp[a_i][b_j] = __fmaf_rn(tileA_BK[a_i], tileB_BK[b_j],temp[a_i][b_j]);
           }
         }
       }
@@ -301,10 +303,18 @@ __global__ void sgemm_t_8x8_sliced_k_bcf_db_f32x4_kernel(float *a, float *b, flo
 
       }
       #pragma unroll
-      for (int i=0;i<TM;i++){
-        for (int j=0;j<TN;j++){
-          c_ptr[(ty * TM + i) * N + tx * TN + j] = temp[i][j];
-        }
+      for (int i = 0; i < TM; i++) {
+        // 计算当前线程在 C 矩阵当前行的基础偏移量
+        int row_offset = (ty * TM + i) * N + tx * TN;
+        
+        // 构造前 4 个元素的 float4 向量 (j = 0, 1, 2, 3)
+        float4 vec0 = make_float4(temp[i][0], temp[i][1], temp[i][2], temp[i][3]);
+        // 构造后 4 个元素的 float4 向量 (j = 4, 5, 6, 7)
+        float4 vec1 = make_float4(temp[i][4], temp[i][5], temp[i][6], temp[i][7]);
+        
+        // 直接触发 128-bit 向量化存储 (ST.128)
+        FLOAT4(c_ptr[row_offset])     = vec0;
+        FLOAT4(c_ptr[row_offset + 4]) = vec1;
       }
 }
 
@@ -451,6 +461,9 @@ void sgemm_t_8x8_sliced_k_bcf_db_f32x4(torch::Tensor a, torch::Tensor b,
                         reinterpret_cast<float *>(c.data_ptr()), M, N, K);
 }
 
+// sgemm wmma tensor core 
+void sgemm_wmma_naive(torch::Tensor a,torch::Tensor b, torch::Tensor c);
+void sgemm_wmma_shared_warp_tiling(torch::Tensor a,torch::Tensor b, torch::Tensor c);
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(sgemm_naive_f32)
@@ -458,5 +471,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_bcf_f32x4)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_bcf_db_f32x4)
+  // sgemm wmma
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_naive)
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_shared_warp_tiling)
 
 }

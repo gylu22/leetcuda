@@ -1,7 +1,8 @@
 import time
 from functools import partial
 from typing import Optional
-
+import os 
+os.environ['TORCH_CUDA_ARCH_LIST'] = '8.9'
 import torch
 from torch.utils.cpp_extension import load
 
@@ -11,10 +12,10 @@ torch.set_grad_enabled(False)
 lib = load(
     name="sgemm_lib",
     sources=[
-        "sgemm.cu",
-        "sgemm_async.cu",
-        "sgemm_wmma_tf32_stage.cu",
-        "sgemm_cublas.cu",
+        "kernels/sgemm/sgemm.cu",
+        # "sgemm_async.cu",
+        # "sgemm_wmma_tf32_stage.cu",
+        # "sgemm_cublas.cu",
     ],
     extra_cuda_cflags=[
         "-O3",
@@ -151,83 +152,83 @@ for M, N, K in MNKs:
     run_benchmark(
         lib.sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf, a, b, "f32x4(t8x8dbuf)", c
     )
-    run_benchmark(lib.sgemm_cublas, a, b, "f32(cublas)", c)
-    run_benchmark(partial(torch.matmul, out=c), a, b, "f32_th")
+    # run_benchmark(lib.sgemm_cublas, a, b, "f32(cublas)", c)
+    # run_benchmark(partial(torch.matmul, out=c), a, b, "f32_th")
 
     print("-" * 62 + "WMMA" + "-" * 64)
     # stage, thread block swizzle, dsmem
-    run_benchmark(
-        lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages,
-        a,
-        b,
-        "tf32(mma2x4+warp2x4+stage3)",
-        c,
-        stages=3,
-    )
-    run_benchmark(
-        lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages,
-        a,
-        b,
-        "tf32(mma2x4+warp2x4+stage2)",
-        c,
-        stages=2,
-    )
+    # run_benchmark(
+    #     lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages,
+    #     a,
+    #     b,
+    #     "tf32(mma2x4+warp2x4+stage3)",
+    #     c,
+    #     stages=3,
+    # )
+    # run_benchmark(
+    #     lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages,
+    #     a,
+    #     b,
+    #     "tf32(mma2x4+warp2x4+stage2)",
+    #     c,
+    #     stages=2,
+    # )
 
-    run_benchmark(
-        lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem,
-        a,
-        b,
-        "tf32(mma2x4+...+stage3+dsmem)",
-        c,
-        stages=3,
-    )
-    run_benchmark(
-        lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem,
-        a,
-        b,
-        "tf32(mma2x4+...+stage2+dsmem)",
-        c,
-        stages=2,
-    )
+    # run_benchmark(
+    #     lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem,
+    #     a,
+    #     b,
+    #     "tf32(mma2x4+...+stage3+dsmem)",
+    #     c,
+    #     stages=3,
+    # )
+    # run_benchmark(
+    #     lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem,
+    #     a,
+    #     b,
+    #     "tf32(mma2x4+...+stage2+dsmem)",
+    #     c,
+    #     stages=2,
+    # )
 
-    run_benchmark(
-        lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages,
-        a,
-        b,
-        "tf32(mma2x4+...+stage3+swizzle)",
-        c,
-        stages=3,
-        swizzle=True,
-    )
-    run_benchmark(
-        lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages,
-        a,
-        b,
-        "tf32(mma2x4+...+stage2+swizzle)",
-        c,
-        stages=2,
-        swizzle=True,
-    )
+    # run_benchmark(
+    #     lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages,
+    #     a,
+    #     b,
+    #     "tf32(mma2x4+...+stage3+swizzle)",
+    #     c,
+    #     stages=3,
+    #     swizzle=True,
+    # )
+    # run_benchmark(
+    #     lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages,
+    #     a,
+    #     b,
+    #     "tf32(mma2x4+...+stage2+swizzle)",
+    #     c,
+    #     stages=2,
+    #     swizzle=True,
+    # )
 
-    run_benchmark(
-        lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem,
-        a,
-        b,
-        "tf32(...+stage3+dsmem+swizzle)",
-        c,
-        stages=3,
-        swizzle=True,
-    )
-    run_benchmark(
-        lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem,
-        a,
-        b,
-        "tf32(...+stage2+dsmem+swizzle)",
-        c,
-        stages=2,
-        swizzle=True,
-    )
+    # run_benchmark(
+    #     lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem,
+    #     a,
+    #     b,
+    #     "tf32(...+stage3+dsmem+swizzle)",
+    #     c,
+    #     stages=3,
+    #     swizzle=True,
+    # )
+    # run_benchmark(
+    #     lib.sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem,
+    #     a,
+    #     b,
+    #     "tf32(...+stage2+dsmem+swizzle)",
+    #     c,
+    #     stages=2,
+    #     swizzle=True,
+    # )
 
-    run_benchmark(lib.sgemm_cublas_tf32, a, b, "tf32(cublas+tf32)", c)
+    # run_benchmark(lib.sgemm_cublas_tf32, a, b, "tf32(cublas+tf32)", c)
     torch.cuda.synchronize()
     print("-" * 130)

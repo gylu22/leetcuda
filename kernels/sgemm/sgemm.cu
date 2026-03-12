@@ -740,6 +740,8 @@ void sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem(torch::Tensor a,
                                                      int stages, bool swizzle,
                                                      int swizzle_stride);
 
+
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   // CUDA Cores
   TORCH_BINDING_COMMON_EXTENSION(sgemm_naive_f32)
@@ -748,18 +750,28 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4_bcf)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4_bcf_offset)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf)
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_offset)
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x4_sliced_k16_f32x4_bcf_dbuf)
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x4_sliced_k16_f32x4_bcf_dbuf_async)
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf)
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf_async)
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x16_sliced_k16_f32x4_bcf_dbuf)
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x16_sliced_k16_f32x4_bcf_dbuf_async)
+
+  
+
+  // TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_f32x4_bcf_dbuf_offset)
+  // TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x4_sliced_k16_f32x4_bcf_dbuf)
+  // TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x4_sliced_k16_f32x4_bcf_dbuf_async)
+  // TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf)
+  // TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k16_f32x4_bcf_dbuf_async)
+  // TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x16_sliced_k16_f32x4_bcf_dbuf)
+  // TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x16_sliced_k16_f32x4_bcf_dbuf_async)
   // cuBLAS Tensor Cores
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_cublas)
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_cublas_tf32)
-  // WMMA API Tensor Cores, stage, thread block swizzle, dsmem
-  TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages)
-  TORCH_BINDING_COMMON_EXTENSION(
-      sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem)
+  // TORCH_BINDING_COMMON_EXTENSION(sgemm_cublas)
+  // TORCH_BINDING_COMMON_EXTENSION(sgemm_cublas_tf32)
+  // // WMMA API Tensor Cores, stage, thread block swizzle, dsmem
+  // TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages)
+  // TORCH_BINDING_COMMON_EXTENSION(
+  //     sgemm_wmma_m16n16k8_mma4x2_warp2x4_stages_dsmem)
+
+  
 }
+
+
+
+
+
