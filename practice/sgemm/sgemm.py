@@ -20,7 +20,8 @@ lib = load(
     name="sgemm_lib",
     sources=[
         "practice/sgemm/sgemm.cu",
-        "practice/sgemm/sgemm_wmma.cu"
+        "practice/sgemm/sgemm_wmma.cu",
+        "practice/sgemm/sgemm_swizzle.cu"
     ],
     extra_cuda_cflags=[
         "-O3",
@@ -70,7 +71,7 @@ def run_benchmark(
     stages: int = -1,
     swizzle: bool = False,
     swizzle_stride: int = 1,
-    warmup: int = 2,
+    warmup: int = 5,
     iters: int = 20,
     show_all: bool = False,
     check_acc: bool = True, 
@@ -148,7 +149,7 @@ def run_benchmark(
 
 # --- Main Execution ---
 if __name__ == "__main__":
-    Ms, Ns, Ks = [4096, 8192], [4096, 8192], [4096, 8192]
+    Ms, Ns, Ks = [4096, 8192, 16384], [4096, 8192,16384], [2048,4096, 8192]
     MAX_M, MAX_N, MAX_K = 16384, 16384, 8192
     
     torch.manual_seed(42)
@@ -171,11 +172,12 @@ if __name__ == "__main__":
         # 【重点修改 3】: CUDA Cores 使用严格的 1e-3 阈值
         # run_benchmark(lib.sgemm_naive_f32, a, b, "f32(naive)", c, check_acc=True, atol=1e-3, rtol=1e-3)
         # run_benchmark(lib.sgemm_sliced_k_f32, a, b, "f32(clice)", c, check_acc=True, atol=1e-3, rtol=1e-3)
-        # run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4, a, b, "f32x4(clice)", c, check_acc=True, atol=1e-3, rtol=1e-3)
+        run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4, a, b, "f32x4(clice)", c, check_acc=True, atol=1e-3, rtol=1e-3)
         # run_benchmark(lib.sgemm_t_8x8_sliced_k_bcf_f32x4, a, b, "f32x4_bcf(clice)", c, check_acc=True, atol=1e-3, rtol=1e-3)
-        # run_benchmark(lib.sgemm_t_8x8_sliced_k_bcf_db_f32x4, a, b, "f32x4_bcf_db(clice)", c, check_acc=True, atol=1e-3, rtol=1e-3)
+        run_benchmark(lib.sgemm_t_8x8_sliced_k_bcf_db_f32x4, a, b, "f32x4_bcf_db(clice)", c, check_acc=True, atol=1e-3, rtol=1e-3)
         
         # 【重点修改 4】: Tensor Core 使用宽松的阈值 (最大相对误差允许 5%)
         # 因为 K 达到 4096 时，TF32 的累加误差绝对值经常会跑到 1.0 以上，这是正常的。
-        run_benchmark(lib.sgemm_wmma_naive, a, b, "wmma(naive)", c, check_acc=True, atol=2.0, rtol=5e-2)
-        run_benchmark(lib.sgemm_wmma_shared_warp_tiling,a,b,"wmma_tiling",c, check_acc=True, atol=2.0, rtol=5e-2)
+        # run_benchmark(lib.sgemm_wmma_naive, a, b, "wmma(naive)", c, check_acc=True, atol=2.0, rtol=5e-2)
+        # run_benchmark(lib.sgemm_wmma_shared_warp_tiling,a,b,"wmma_tiling",c, check_acc=True, atol=2.0, rtol=5e-2)
+        run_benchmark(lib.sgemm_t_8x8_sliced_k_swizzle_f32x4, a, b, "f32x4_bcf(swizzle)", c, check_acc=True, atol=1e-1, rtol=5e-2)

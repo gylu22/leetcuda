@@ -178,21 +178,12 @@ __global__ void sgemm_t_8x8_sliced_k_bcf_f32x4_kernel(float *a, float *b, float 
     for (int k=0; k<K; k+=BK){
   
       float4 x_vec = FLOAT4(a_ptr[ta_y * K + ta_x + k]);
-      // tileA[ta_y][ta_x] = x_vec.x;
-      // tileA[ta_y][ta_x+1] = x_vec.y;
-      // tileA[ta_y][ta_x+2] = x_vec.z;
-      // tileA[ta_y][ta_x+3] = x_vec.w;
       tileA[ta_x][ta_y] = x_vec.x;
       tileA[ta_x+1][ta_y] = x_vec.y;
       tileA[ta_x+2][ta_y] = x_vec.z;
       tileA[ta_x+3][ta_y] = x_vec.w;
 
       FLOAT4(tileB[tb_y][tb_x]) = FLOAT4(b_ptr[(k + tb_y) * N + tb_x]);
-      // float4 b_vec = FLOAT4(b_ptr[(k + tb_y) * N + tb_x]);
-      // tileB[tb_y][tb_x] = b_vec.x;
-      // tileB[tb_y][tb_x+1] = b_vec.y;
-      // tileB[tb_y][tb_x+2] = b_vec.z;
-      // tileB[tb_y][tb_x+3] = b_vec.w;
       
       // 第一次同步，保证第一次循环计算之前所有元素都读取到shared memory
       __syncthreads();
@@ -207,10 +198,16 @@ __global__ void sgemm_t_8x8_sliced_k_bcf_f32x4_kernel(float *a, float *b, float 
           // tileA_BK[j] = tileA[ty * TM + j][i];
           tileA_BK[j] = tileA[i][ty * TM + j];
         }
+        // FLOAT4(tileA_BK[0]) = FLOAT4(tileA[i][ty * TM ]);
+        // FLOAT4(tileA_BK[4]) = FLOAT4(tileA[i][ty * TM + 4]);
+
         #pragma unroll
         for (int j = 0; j < TN; j++) {
           tileB_BK[j] = tileB[i][tx * TN + j];
         }
+        // FLOAT4(tileB_BK[0]) = FLOAT4(tileB[i][tx * TN]);
+        // FLOAT4(tileB_BK[4]) = FLOAT4(tileB[i][tx * TN + 4]);
+
         #pragma unroll
         for (int a_i = 0; a_i < TM; a_i++) {
           for (int b_j = 0; b_j < TN; b_j++) {
@@ -464,6 +461,7 @@ void sgemm_t_8x8_sliced_k_bcf_db_f32x4(torch::Tensor a, torch::Tensor b,
 // sgemm wmma tensor core 
 void sgemm_wmma_naive(torch::Tensor a,torch::Tensor b, torch::Tensor c);
 void sgemm_wmma_shared_warp_tiling(torch::Tensor a,torch::Tensor b, torch::Tensor c);
+void sgemm_t_8x8_sliced_k_swizzle_f32x4(torch::Tensor a,torch::Tensor b, torch::Tensor c);
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(sgemm_naive_f32)
@@ -474,5 +472,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   // sgemm wmma
   TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_naive)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_shared_warp_tiling)
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_swizzle_f32x4)
 
 }
