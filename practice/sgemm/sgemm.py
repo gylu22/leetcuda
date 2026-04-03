@@ -179,5 +179,6 @@ if __name__ == "__main__":
         # 【重点修改 4】: Tensor Core 使用宽松的阈值 (最大相对误差允许 5%)
         # 因为 K 达到 4096 时，TF32 的累加误差绝对值经常会跑到 1.0 以上，这是正常的。
         # run_benchmark(lib.sgemm_wmma_naive, a, b, "wmma(naive)", c, check_acc=True, atol=2.0, rtol=5e-2)
-        # run_benchmark(lib.sgemm_wmma_shared_warp_tiling,a,b,"wmma_tiling",c, check_acc=True, atol=2.0, rtol=5e-2)
-        run_benchmark(lib.sgemm_t_8x8_sliced_k_swizzle_f32x4, a, b, "f32x4_bcf(swizzle)", c, check_acc=True, atol=1e-1, rtol=5e-2)
+        run_benchmark(lib.sgemm_wmma_shared_warp_tiling,a,b,"wmma_tiling",c, check_acc=True, atol=2.0, rtol=5e-2)
+        # run_benchmark(lib.sgemm_t_8x8_sliced_k_swizzle_f32x4, a, b, "f32x4_bcf(swizzle)", c, check_acc=True, atol=1e-1, rtol=5e-2)
+        run_benchmark(lib.sgemm_wmma_shared_warp_tiling_db,a,b,"wmma_tiling_db",c, check_acc=True, atol=2.0, rtol=5e-2)

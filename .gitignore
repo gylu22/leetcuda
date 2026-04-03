@@ -20,7 +20,7 @@ __pycache__
 outupt
 bin
 *.log
-*.txt
+.txt
 *.tex
 __pycache__
 pdfs
