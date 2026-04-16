@@ -464,6 +464,9 @@ void sgemm_wmma_shared_warp_tiling(torch::Tensor a,torch::Tensor b, torch::Tenso
 void sgemm_t_8x8_sliced_k_swizzle_f32x4(torch::Tensor a,torch::Tensor b, torch::Tensor c);
 void sgemm_wmma_shared_warp_tiling_db(torch::Tensor a,torch::Tensor b, torch::Tensor c);
 
+void sgemm_cublas(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+void sgemm_cublas_tf32(torch::Tensor a, torch::Tensor b, torch::Tensor c);
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(sgemm_naive_f32)
   TORCH_BINDING_COMMON_EXTENSION(sgemm_sliced_k_f32)
@@ -476,5 +479,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   TORCH_BINDING_COMMON_EXTENSION(sgemm_wmma_shared_warp_tiling_db)
   // swizzle 
   TORCH_BINDING_COMMON_EXTENSION(sgemm_t_8x8_sliced_k_swizzle_f32x4)
+
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_cublas)
+  TORCH_BINDING_COMMON_EXTENSION(sgemm_cublas_tf32)
 
 }

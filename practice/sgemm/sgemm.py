@@ -1,5 +1,4 @@
 import time
-from functools import partial
 from typing import Optional
 import os 
 import numpy as np
@@ -21,7 +20,8 @@ lib = load(
     sources=[
         "practice/sgemm/sgemm.cu",
         "practice/sgemm/sgemm_wmma.cu",
-        "practice/sgemm/sgemm_swizzle.cu"
+        "practice/sgemm/sgemm_swizzle.cu",
+        "practice/sgemm/sgemm_cublas.cu"
     ],
     extra_cuda_cflags=[
         "-O3",
@@ -60,6 +60,12 @@ def check_accuracy(custom_out: torch.Tensor, reference_out: torch.Tensor, tag: s
     reset_code = "\033[0m"
     
     return passed, max_abs_err, max_rel_err, max_err_pos, f"{color_code}{status}{reset_code}"
+
+
+def torch_sgemm(a: torch.Tensor, b: torch.Tensor, out: Optional[torch.Tensor] = None):
+    if out is None:
+        return torch.matmul(a, b)
+    return torch.matmul(a, b, out=out)
 
 # 【重点修改 2】: run_benchmark 增加 atol 和 rtol 参数
 def run_benchmark(
@@ -171,7 +177,7 @@ if __name__ == "__main__":
 
         # 【重点修改 3】: CUDA Cores 使用严格的 1e-3 阈值
         # run_benchmark(lib.sgemm_naive_f32, a, b, "f32(naive)", c, check_acc=True, atol=1e-3, rtol=1e-3)
-        # run_benchmark(lib.sgemm_sliced_k_f32, a, b, "f32(clice)", c, check_acc=True, atol=1e-3, rtol=1e-3)
+        run_benchmark(lib.sgemm_sliced_k_f32, a, b, "f32(clice)", c, check_acc=True, atol=1e-3, rtol=1e-3)
         run_benchmark(lib.sgemm_t_8x8_sliced_k_f32x4, a, b, "f32x4(clice)", c, check_acc=True, atol=1e-3, rtol=1e-3)
         # run_benchmark(lib.sgemm_t_8x8_sliced_k_bcf_f32x4, a, b, "f32x4_bcf(clice)", c, check_acc=True, atol=1e-3, rtol=1e-3)
         run_benchmark(lib.sgemm_t_8x8_sliced_k_bcf_db_f32x4, a, b, "f32x4_bcf_db(clice)", c, check_acc=True, atol=1e-3, rtol=1e-3)
@@ -182,3 +188,6 @@ if __name__ == "__main__":
         run_benchmark(lib.sgemm_wmma_shared_warp_tiling,a,b,"wmma_tiling",c, check_acc=True, atol=2.0, rtol=5e-2)
         # run_benchmark(lib.sgemm_t_8x8_sliced_k_swizzle_f32x4, a, b, "f32x4_bcf(swizzle)", c, check_acc=True, atol=1e-1, rtol=5e-2)
         run_benchmark(lib.sgemm_wmma_shared_warp_tiling_db,a,b,"wmma_tiling_db",c, check_acc=True, atol=2.0, rtol=5e-2)
+
+        run_benchmark(lib.sgemm_cublas, a, b, "f32(cublas)", c, check_acc=True, atol=1e-3, rtol=1e-3)
+        run_benchmark(torch_sgemm, a, b, "f32(torch)", check_acc=True, atol=1e-3, rtol=1e-3)
